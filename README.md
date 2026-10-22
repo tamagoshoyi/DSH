@@ -58,7 +58,7 @@ tests/               测试
 - [x] 工具链入口：`scripts/env.ps1`（实测 node / pnpm / git 可用）
 - [x] 环境体检脚本：`scripts/check.ps1` / `check.cmd`（实测退出码 0）
 - [x] DSH 配置梳理：`docs/dsh-config.md`
-- [x] 插件：`dshmarket` + `dsh-whale-widget` 装入桌面 profile（重启后生效）
+- [x] 插件：周下载前五（billion-context / dshmarket / dsh-whale-widget / dsh-better-sidebar / dsh-context）装入桌面 profile（重启后生效）
 - [x] git 便携版：MinGit 2.56 装入 `.tools\git`（经 TUNA 镜像下载，见 `docs/environment.md`）
 - [x] `git init` 建仓（分支 `main`，13 个文件已 stage）
 - [x] SSH 密钥：`.tools\ssh\id_ed25519`（Windows OpenSSH，公钥见 `id_ed25519_pub.txt`）

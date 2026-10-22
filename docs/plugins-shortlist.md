@@ -46,23 +46,40 @@ DSH 的插件挂在 profile 上，两条路：Web 侧边栏的 Plugins 页（官
 或者文件层——profile 的 `package.json` 依赖 + `dsh.profile.bundles` 列表，重启生效。
 本次走的是文件层，实测可行，步骤见下一节。
 
-## 已安装（2026-10-22 23:40）
+## 已安装（前五名，2026-10-23 00:05）
 
-安装到桌面 profile `C:\Users\WINDOWS\.dsh\profiles\desktop`：
+桌面 profile `C:\Users\WINDOWS\.dsh\profiles\desktop`，`dsh.profile.bundles` 顺序：
 
-| 包 | 版本 | 周下载 | bundle patch |
+```
+dsh-base → dsh-web-app → dshmarket → dsh-whale-widget → billion-context → dsh-better-sidebar → dsh-context
+```
+
+| 包 | 版本 | 周下载 | patch 插入的条目 |
 | --- | --- | --- | --- |
-| `dshmarket` | 1.67.0 | 163,589 | `- id: dsh-market` |
-| `dsh-whale-widget` | 0.4.2 | 55,568 | `- id: dsh-whale-widget` |
+| `billion-context` | 0.1.204 | 650,111 | `bili-native`、`bili-compaction-gate`＋改写 `compaction-basic` / `preset-*` / `llm-deepseek` |
+| `dshmarket` | 1.67.0 | 163,589 | `dsh-market` |
+| `dsh-whale-widget` | 0.4.2 | 55,568 | `dsh-whale-widget` |
+| `dsh-better-sidebar` | 0.28.0 | 49,719 | `better-sidebar` |
+| `dsh-context` | 0.74.0 | 43,362 | `dsh-context` |
 
-命令：`pnpm add dshmarket@1.67.0 dsh-whale-widget@0.4.2 --save-exact`（30.9 秒，5 个包），
-然后把两个名字追加到 `package.json` 的 `dsh.profile.bundles`。
+安装方式：`pnpm add <pkg>@<ver> --save-exact` 在 profile 目录执行，再把包名追加到 `dsh.profile.bundles`。
+dshmarket 那批 5 个包用了 30.9 秒；后三个（含 better-sidebar 的 codemirror 全家桶）装了约 3 分钟，node_modules 约 251 MB。
 
-**需要重启 DSH 才会加载**——bundle 列表只在组合（composition）阶段读取。
+### 需要知道的副作用
 
-回滚：删掉 backup 目录里的那份 `package.json` 覆盖回去，再在 profile 目录 `pnpm install`，
-或直接 `pnpm remove dshmarket dsh-whale-widget` 并从 bundles 里删两行。
+`billion-context` 不是纯增量插件，它的 patch 会**改写核心行为**：
 
-备份：`.tmp/profile-backup-20261022-232944/`（package.json / pnpm-workspace.yaml / cordis.patch.yml）。
+- 关闭宿主层的 `compaction-basic`（`auto: false`），改由自己的 `bili-compaction-gate` 接管压缩；
+- 给 4 个 preset（standard / ptc / minimal / cordis）各注入 `biliBasicCompactionPolicy`；
+- 重写 `llm-deepseek` 与 `llm-deepseek-account` 的 `retryPolicy`，把 `MALFORMED_RESPONSE` 加进重试白名单。
 
-风险：这两个包都以 agent 权限在进程内运行；`dshmarket` 还能继续装别的插件，等于把安装权也交给它。已核验：包来自 npm 官方源、有源码仓库、声明的 patch 只插入自己的条目。
+另外 `billion-context` 和 `dsh-context` 都在管上下文/压缩，职责有重叠；如果重启后出现压缩异常或会话创建卡住，
+**第一个要摘掉的就是 `billion-context`**（它的 patch 也写了：出问题要从 `dsh.profile.bundles` 里删它，而不是只禁用某个条目）。
+
+### 回滚
+
+- 第二份备份：`.tmp/profile-backup-20261022-235425/`（package.json / pnpm-lock.yaml / pnpm-workspace.yaml / cordis.patch.yml）；
+- 第一份备份：`.tmp/profile-backup-20261022-232944/`；
+- 只摘一个：从 `dsh.profile.bundles` 删名字 + `pnpm remove <pkg>`。
+
+**要重启 DSH 才生效**——bundle 列表只在组合阶段读取。
