@@ -1,0 +1,11 @@
+# 统一换行与文本判定
+* text=auto eol=lf
+
+*.ps1 text eol=lf
+*.psm1 text eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.pdf binary
+*.zip binary
