@@ -1,4 +1,4 @@
-# 幽灵程序与残留注册表扫描
+﻿# 幽灵程序与残留注册表扫描
 
 日期：2026-10-23 · 扫描内容：启动项 / 服务驱动 / 卸载记录 / App Paths / 快捷方式 / 计划任务 / 事件日志 / 残留目录
 
@@ -160,5 +160,42 @@
 - 因此缺这几个组件不会让系统更新失效，也不会影响游戏稳定性，只是这几条任务被触发时会静默失败。
 
 建议：只删前三个（ASUS / 定位 / 移动宽带），后面 4 个改成禁用而不是删除，保留系统更新结构完整。
+
+## 重启后验证（2026-10-23 19:26，开机 19:22:20）
+
+| 检查项 | 结果 |
+| --- | --- |
+| `ACE-CORE106010071` / `ACE-CORE206010071` / `ace-game-0` / `atvi-randgrid_msstore` | 服务已不存在 ✅ |
+| `XLWFP` | `START_TYPE: 4 DISABLED` ✅ |
+| `\ASUS\P508PowerAgent_sdk` | 已删除 ✅ |
+| `\Microsoft\Windows\Location\Notifications` | 已删除 ✅ |
+| `\Microsoft\Windows\Mobile Broadband Accounts\MNO Metadata Parser` | **仍在，状态 Ready** ❌（删除没生效） |
+| 4 个 `UpdateOrchestrator` 任务 | 非管理员 `schtasks /query` 返回非零（受保护），状态未知 |
+| `cpuz159` | **仍 `STATE: 4 RUNNING`**，注册表键存在，`Start=3`，`DeleteFlag` 已消失 ❓ |
+| 事件 7000（服务启动失败） | 重启后 0 条（最后一条 18:40，重启前）✅ |
+| 事件 7001 | 3 条，均为 "User Logon Notification for Customer Experience Improvement Program"，系统自带噪音，无需处理 |
+
+磁盘：C: 可用 197.92 / 399.02 GB，D: 可用 229.61 / 531.20 GB。
+页面文件仍为 `c:\pagefile.sys 0 0 | d:\pagefile.sys 40000 41000`；commit 13.41 GB，可用内存 21197 MB，pf 使用率 0%。
+
+### `cpuz159` 为什么清不掉
+
+`sc query cpuz159` 报 `RUNNING`，但注册表里 `DeleteFlag` 已随重启清除、`Start` 从 4 变回 3（按需启动）——
+说明重启后这个键被重新写入了，而不是简单残留。
+
+可疑点：`C:\WINDOWS\temp` 的 ACL 连沙箱的 `danger-full-access` 都读不了
+（`Test-Path` 报 `Access is denied`，`Get-ChildItem` 返回 0 项，`cmd /c dir` 显示 File Not Found）。
+所以「`cpuz159_x64.sys` 不存在」这个结论**不可靠**，只有管理员/SYSTEM 身份能确认。
+
+待办（管理员终端）：
+
+```cmd
+sc query cpuz159
+sc stop cpuz159
+sc delete cpuz159
+dir C:\WINDOWS\temp\cpuz159
+```
+
+若 `dir` 显示文件存在，停掉后手动删除该目录，再重启确认服务消失。
 
 
