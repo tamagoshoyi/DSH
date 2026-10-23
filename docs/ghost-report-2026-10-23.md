@@ -1,4 +1,4 @@
-﻿# 幽灵程序与残留注册表扫描
+# 幽灵程序与残留注册表扫描
 
 日期：2026-10-23 · 扫描内容：启动项 / 服务驱动 / 卸载记录 / App Paths / 快捷方式 / 计划任务 / 事件日志 / 残留目录
 
@@ -197,5 +197,45 @@ dir C:\WINDOWS\temp\cpuz159
 ```
 
 若 `dir` 显示文件存在，停掉后手动删除该目录，再重启确认服务消失。
+
+### 结论：`cpuz159` 是微软电脑管家的驱动，不是幽灵
+
+用户以管理员复查后确认：`cpuz159_x64.sys` **确实存在**（44,680 字节，时间戳 19:22 正好等于开机时间），
+且重启后服务又变回按需启动并处于 RUNNING——说明每次开机都有程序重新创建它。
+
+证据链：
+
+| 证据 | 说明 |
+| --- | --- |
+| 服务键 ACL 含 `NT SERVICE\PCManager Service Store` = FullControl | 普通服务键不会给这个账户权限，说明由它创建 |
+| `PCManager Service Store` 服务 = `WindowsApps\Microsoft.MicrosoftPCManager_3.22.6.0_x64__8wekyb3d8bbwe\PCManager\MSPCManagerService.exe`，`Start=2` | 微软电脑管家（Store 版 3.22.6.0），开机自启 |
+| `.sys` 的 LastWriteTime = 19:22（开机时刻） | 每次开机重建，不是一次性残留 |
+| 全盘无 CPU-Z 可执行文件、Run 键无引用、Prefetch 无记录 | 不是用户手动启动 CPU-Z 留下的 |
+| 文件位置 `%windir%\temp\cpuz159\`，44 KB | 微软电脑管家做硬件检测时调用 CPU-Z 的签名驱动 |
+
+**判定**：无害的签名驱动，属于微软电脑管家的硬件信息采集功能，不是幽灵也不是恶意程序。
+删了也会在下次开机被重新创建。
+
+两个处理方向：
+
+- **保留**（推荐）：只占 44 KB，驱动有签名，PC Manager 服务本身已在跑。
+- **卸载微软电脑管家**：本机已有火绒，功能重叠，且 PC Manager 目前没有 UI 进程（基本闲置）。
+  卸载后 `cpuz159` 不再复活，再执行 `sc.exe delete cpuz159` 并删目录即可。
+
+### 附带纠正：PowerShell 里的 `sc` 不是服务控制器
+
+用户执行的 `sc stop cpuz159` / `sc delete cpuz159` 没有任何输出——因为 **PowerShell 中 `sc` 是 `Set-Content` 的别名**，
+这两条命令实际是在往名为 `cpuz159` 的文件写空内容，对服务毫无作用。必须显式写 `sc.exe`。
+
+### `UpdateOrchestrator` 4 个任务：受 TrustedInstaller 保护，建议不动
+
+管理员执行 `schtasks /change /disable` 全部报「拒绝访问」。任务 XML 位于
+`C:\Windows\System32\Tasks\Microsoft\Windows\UpdateOrchestrator\`，属主是 `NT SERVICE\TrustedInstaller`。
+要改必须先 `takeown` 再改 ACL，会破坏更新 UI 结构；这 4 条任务只在触发时静默失败，不影响更新机制与游戏稳定性。
+
+### `MNO Metadata Parser`：已不存在
+
+复查 `schtasks /query` 返回 exit=1「系统找不到指定的文件」，说明任务已被删除。
+
 
 
