@@ -178,6 +178,27 @@ Runner failure: windows-acl-run: --temp is not an existing directory: ...\Temp\d
 另：沙箱是 `workspace-write` 时，工作区之外的路径（如 `C:\ProgramData`、`%LOCALAPPDATA%`）
 一律不可写，删缓存类操作需要在调用时显式申请 `danger-full-access`。
 
+## 坑 5：`.ps1` 不能加 `[CmdletBinding()]`
+
+在这个环境里跑任何带 `[CmdletBinding()]` 的脚本都会直接失败：
+
+```text
+无法使用 '.' 运算符在当前主机或语言模式下点源该文件。因为主机在不同语言模式下运行。
+FullyQualifiedErrorId: DotSourceNotSupported
+```
+
+原因：脚本在子进程 `powershell.exe -File` 下运行（FullLanguage），但高级函数（`[CmdletBinding()]` 会把脚本
+编译成高级函数）要在另一个语言模式下动态生成函数体，被锁定策略拒绝。去掉 `[CmdletBinding()]`、
+参数用普通 `param([switch]$X)` 就正常。
+
+顺带两个结论：
+
+- `$ExecutionContext.SessionState.LanguageMode` 在子进程里是 `FullLanguage`，主会话 pwsh 反而是
+  `ConstrainedLanguage`（`.NET` 静态调用、`[Text.Encoding]::UTF8` 都会报 `CannotCreateTypeConstrainedLanguage`）。
+  所以**需要中文输出或 .NET 调用的脚本一律写成独立 `.ps1` 用子进程跑**，不要在工具调用里内联。
+- 子进程里 `Get-PSDrive X` 的 `.Free` 返回空、`.Used` 返回 0（卷信息取不到），要读可用空间用
+  `New-Object System.IO.DriveInfo('C').AvailableFreeSpace`。
+
 ## 复验
 
 ```powershell
