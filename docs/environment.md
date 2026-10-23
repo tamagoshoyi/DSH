@@ -161,6 +161,23 @@ user.email = tamagoshoyi@gmail.com
    }
    ```
 
+## 坑 4：不要清空整个 `%TEMP%`
+
+`C:\Users\WINDOWS\AppData\Local\Temp` 里有 DSH 沙箱运行器的工作目录（`Temp\dsh-XXXXXX`）。
+把它整体清空后，所有 `workspace-write` 命令立刻失败：
+
+```text
+sandbox mode "workspace-write" is requested but no sandbox backend is usable ...
+Runner failure: windows-acl-run: --temp is not an existing directory: ...\Temp\dsh-2NXHjZ
+```
+
+修复：重建那个目录（名字从报错信息里读），或用一次 `danger-full-access` 执行
+`New-Item -ItemType Directory -Force`。教训：清理临时文件只删自己的 `.tmp\` 和明确的应用缓存，
+不要 `Remove-Item $env:TEMP\*`。
+
+另：沙箱是 `workspace-write` 时，工作区之外的路径（如 `C:\ProgramData`、`%LOCALAPPDATA%`）
+一律不可写，删缓存类操作需要在调用时显式申请 `danger-full-access`。
+
 ## 复验
 
 ```powershell
