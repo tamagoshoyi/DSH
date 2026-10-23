@@ -133,3 +133,32 @@
 
 事件日志里的 13 次 `XLWFP` 失败是清理前的历史记录，重启后观察一天应归零。
 
+## 计划任务扫描（补充，2026-10-23 19:12）
+
+管理员导出 `schtasks /query /fo csv /v` 后解析：523 行 → 去重 **281 个任务**，其中 48 个已禁用（全是 Windows 内置，属正常状态）。
+
+目标文件缺失的只有 7 个，全部处于「已启用」：
+
+| 任务 | 缺失的可执行文件 | 判断 |
+| --- | --- | --- |
+| `\ASUS\P508PowerAgent_sdk` | `ASUS\ArmouryDevice\...\ROG STRIX CARRY\P508PowerAgent.exe` | 华硕鼠标电源代理，设备已不在，可删 |
+| `\Microsoft\Windows\Location\Notifications` | `System32\LocationNotificationWindows.exe` | 定位通知，组件已不存在，可删/禁用 |
+| `\Microsoft\Windows\Mobile Broadband Accounts\MNO Metadata Parser` | `System32\MbaeParserTask.exe` | 移动宽带，本机无蜂窝模块，可删/禁用 |
+| `\Microsoft\Windows\UpdateOrchestrator\MusUx_LogonUpdateResults` | `System32\MusNotification.exe` | 见下 |
+| `\Microsoft\Windows\UpdateOrchestrator\Reboot_AC` | 同上 | 见下 |
+| `\Microsoft\Windows\UpdateOrchestrator\Reboot_Battery` | 同上 | 见下 |
+| `\Microsoft\Windows\UpdateOrchestrator\USO_UxBroker` | 同上 | 见下 |
+
+**重要发现**：`MusNotification.exe` 与 `MusNotificationUx.exe` 在 `System32` 下都不存在，同时缺
+`LocationNotificationWindows.exe`、`MbaeParserTask.exe`。这些是 Windows 自带的更新提示/定位/移动宽带组件，
+正常安装不该缺——**说明这套系统是被精简（slim）处理过的镜像**，不是原版。
+
+影响评估：
+
+- 这 4 个 UpdateOrchestrator 任务只负责「更新完成后的提示 UI」和「重启提醒」，不是更新机制本身；
+- Windows Update 的实际下载安装走 `UsoClient` / `UpdateOrchestrator\Schedule Work` 系列，这些任务的目标文件都在；
+- 因此缺这几个组件不会让系统更新失效，也不会影响游戏稳定性，只是这几条任务被触发时会静默失败。
+
+建议：只删前三个（ASUS / 定位 / 移动宽带），后面 4 个改成禁用而不是删除，保留系统更新结构完整。
+
+
