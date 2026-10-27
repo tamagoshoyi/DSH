@@ -125,6 +125,30 @@ def cat_of(p):
     return CAT_OVERRIDE.get(p["Name"], p["Category"])
 
 
+# 用户已决策的条目（2026-10-27 对话）
+DECISIONS = {
+    "Python 3.14.5 Documentation (64-bit)": "删除",
+    "Python 3.14.5 Test Suite (64-bit)": "删除",
+    "Microsoft Teams Meeting Add-in for Microsoft Office": "删除",
+    "Windows 电脑健康状况检查": "删除",
+    "CertsUpdater version 1.5": "删除",
+    "迅雷": "删除",
+    "Discord": "删除",
+    "Microsoft .NET SDK 8.0.426 (x64)": "删除",
+    "Microsoft .NET Toolset 8.0.426 (x64)": "删除",
+    "Microsoft .NET Targeting Pack - 8.0.32 (x64)": "删除",
+    "Microsoft .NET Standard Targeting Pack - 2.1.0 (x64)": "删除",
+    "Microsoft .NET AppHost Pack - 8.0.32 (x64)": "删除",
+    "Microsoft .NET AppHost Pack - 8.0.32 (x64_arm64)": "删除",
+    "Microsoft .NET AppHost Pack - 8.0.32 (x64_x86)": "删除",
+    "Microsoft .NET 8.0 Templates 8.0.426 (x64)": "删除",
+}
+
+
+def decision_of(name):
+    return DECISIONS.get(name, "")
+
+
 def advice_for(name, cat):
     for key, verdict, note in ADVICE:
         if key.lower() in name.lower():
@@ -251,7 +275,8 @@ for i, (verdict, p, note) in enumerate(focus, start=1):
     size = p["SizeMB"]
     size_val = None if size in ("", "-1") else round(float(size), 1)
     ws.append([i, p["Name"], CAT_CN.get(cat_of(p), cat_of(p)), p["Publisher"],
-               p["Version"], norm_date(p["InstallDate"]), size_val, verdict, note, ""])
+               p["Version"], norm_date(p["InstallDate"]), size_val, verdict, note,
+               decision_of(p["Name"])])
 
 for row in ws.iter_rows(min_row=2, max_row=ws.max_row, max_col=len(cols)):
     for cell in row:
@@ -285,7 +310,7 @@ for i, (_, p, verdict, note) in enumerate(prepared, start=1):
     ws.append([
         i, p["Name"], CAT_CN.get(cat_of(p), cat_of(p)), p["Publisher"],
         p["Version"], norm_date(p["InstallDate"]), size_val,
-        p["Location"], verdict, note, "",
+        p["Location"], verdict, note, decision_of(p["Name"]),
     ])
 
 for row in ws.iter_rows(min_row=2, max_row=ws.max_row, max_col=len(cols)):

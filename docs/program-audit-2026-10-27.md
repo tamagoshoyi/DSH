@@ -10,7 +10,7 @@
 | 维度 | 结果 |
 | --- | --- |
 | 已安装程序 | **210 条**，已知体积合计 **165.9 GB** |
-| 其中建议「可删」 | 6 条，已知体积 **149.7 MB**；保留 53 条；待你判断 151 条 |
+| 其中建议「可删」 | 6 条，已知体积 **149.7 MB**；待你判断 53 条；建议保留 151 条 |
 | 垃圾/缓存「安全可删」 | 32 项中 25 项可清，合计 **15.4 GB** |
 | 残留数据目录待判断 | **37 个，37.5 GB** |
 | 僵尸项 | **12 条**（1 个服务 + 11 个孤儿目录），真正的死链 **0** |
@@ -158,3 +158,44 @@
 - **本机是精简镜像**（`MusNotification.exe` 等系统文件缺失），个别卸载器可能报错，届时按提示处理。
 - **D3DSCache 删了首进游戏会卡**：这是重建着色器，不是故障。
 - **删除不可逆**：脚本会先 dry-run，二次确认才执行。
+
+---
+
+## 九、已决策清单与执行脚本（2026-10-27 更新）
+
+用户在对话中决定删除以下 15 项（编号对应聊天里的清单）：
+
+| # | 程序 | 卸载方式 |
+| --- | --- | --- |
+| 1 | Python 3.14.5 Documentation (64-bit) | `msiexec /x {EDE01DCA-...}` |
+| 2 | Python 3.14.5 Test Suite (64-bit) | `msiexec /x {F479F658-...}` |
+| 3 | Microsoft Teams Meeting Add-in for Office | `msiexec /x {A7AB73A3-...}` |
+| 4 | Windows 电脑健康状况检查 | `msiexec /x {84A03DEC-...}` |
+| 5 | CertsUpdater 1.5 | `C:\WINDOWS\unins000.exe /SILENT` |
+| 19 | 迅雷 | `D:\Thunder\Program\ThunderUninstall.exe`（会弹界面） |
+| 22 | Discord | `Update.exe --uninstall -s` |
+| 44 | .NET SDK 8.0.426 (x64) | `dotnet-sdk-8.0.426-win-x64.exe /uninstall /quiet` |
+| 45 | .NET Toolset 8.0.426 (x64) | `msiexec /x {91A7FF58-...}` |
+| 50 | .NET Targeting Pack 8.0.32 | `msiexec /x {E59CDBC8-...}` |
+| 51 | .NET Standard Targeting Pack 2.1.0 | `msiexec /x {A7036CFB-...}` |
+| 52 | .NET AppHost Pack 8.0.32 (x64) | `msiexec /x {9F61C99B-...}` |
+| 53 | .NET AppHost Pack 8.0.32 (arm64) | `msiexec /x {C663892E-...}` |
+| 54 | .NET AppHost Pack 8.0.32 (x64_x86) | `msiexec /x {24AF8A28-...}` |
+| 55 | .NET 8.0 Templates 8.0.426 | `msiexec /x {DAF2FAD1-...}` |
+
+**保留未动的相关项**（用户未选）：RTSS（#6，配合 Afterburner）、.NET **运行时** 46-49 / 56-59（游戏与工具依赖）、全部游戏、OneDrive、Chrome 等。
+
+执行脚本：`scripts/uninstall-selected.ps1` + `scripts/uninstall-selected.cmd`
+
+```powershell
+.\scripts\uninstall-selected.cmd            # dry-run，只打印
+.\scripts\uninstall-selected.cmd -Execute   # 管理员窗口中真删
+```
+
+脚本行为：默认 dry-run；`-Execute` 需管理员；MSI 的注册表项常写成 `/I`（修复安装），脚本一律改写为 `/x`；卸载前自动结束 Discord / 迅雷进程并停 `XLServicePlatform` 服务；每项执行后回查注册表确认是否移除；日志写 `.tmp\uninstall-selected.log`。
+
+卸载后需人工确认的残留（脚本只列出体积，不自动删）：
+- `D:\Thunder` 1,378 MB
+- `%LOCALAPPDATA%\Discord` 464 MB
+- `%LOCALAPPDATA%\Thunder Network` 260 MB
+- `%APPDATA%\Thunder Network` 361 MB
