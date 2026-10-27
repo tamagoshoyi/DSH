@@ -239,3 +239,68 @@ Python 本体完好（`python --version` → 3.14.5），只少了文档和测�
 遗留待处理（需管理员）：孤儿服务键 `XLWFP`（Start=4 已禁用、驱动文件不存在），命令 `sc.exe delete XLWFP`。
 
 磁盘：C: 可用 178.75 GB / 399 GB，D: 可用 229.51 GB / 531.2 GB。
+
+## 十、补齐运行时与 User / Program Files 清理（第二轮）
+
+### 10.1 装回 .NET 8 桌面运行时
+
+用 `Start-Process -Verb RunAs` 提权安装 `windowsdesktop-runtime-8.0.32-win-x64.exe`（55.9 MB，exit=0）。装完：
+
+```
+Microsoft.NETCore.App        6.0.36
+Microsoft.NETCore.App        8.0.32
+Microsoft.WindowsDesktop.App 6.0.36
+Microsoft.WindowsDesktop.App 8.0.32   <- 已恢复
+```
+
+ASP.NET Core 运行时仍未装（本机无 Web 服务需求，需要时再补）。
+
+### 10.2 删除的文件（共 1.81 GB）
+
+扫描范围：`C:\Users\WINDOWS`、`C:\Program Files`、`C:\Program Files (x86)` 一级目录，逐个用 `robocopy /L` 量体积，再用注册表（卸载记录 / 服务 ImagePath / Run / App Paths）判定是否还被引用，最后人工核实进程与服务。
+
+| 路径 | 体积 | 依据 |
+| --- | --- | --- |
+| `C:\Program Files\Common Files\Adobe` | 421.1 MB | 无任何 Adobe 卸载记录，无 Adobe 进程/服务 |
+| `C:\Program Files\ASUS\RLSDownload` | 302.6 MB | 奥创灯光 SDK 下载缓存（`*.zip`），可重新下载 |
+| `C:\Program Files\Razer\Razer Surround Sound Setup` | 197.3 MB | 安装包缓存（`RzAppEngine_installer.exe`） |
+| `C:\Program Files\Microsoft OneDrive\26.189.0928.0009\OneDriveSetup.exe` | 128.4 MB | OneDrive 自带安装包，可重新下载 |
+| `C:\Program Files\Adobe` | 86.9 MB | Creative Cloud Experience 残留 |
+| `C:\Program Files (x86)\Epic Games\Epic Online Services\.egstore\old.ver` | 77.5 MB | EOS 旧版本回滚副本 |
+| `C:\Program Files (x86)\Epic Games\Epic Online Services\.egstore\rollback` | 75.3 MB | EOS 回滚副本 |
+| `C:\Program Files (x86)\Microsoft\EdgeUpdate\Download\*` | 53.6 MB | Edge 更新下载缓存 |
+| `C:\Program Files (x86)\Adobe` | 37.1 MB | Adobe Sync / CoreSync 残留 |
+| `C:\Program Files\Razer\RazerAppEngine Upgrade Setup` | 17.8 MB | 升级包缓存 |
+| 其余 Razer `* Setup` / `Upgrade` 目录 | 1.2 MB | 安装包缓存 |
+| `C:\Users\WINDOWS\PycharmProjects\PythonProject\.venv` | 307.0 MB | PyCharm 已卸载，虚拟环境随之作废 |
+| `C:\Users\WINDOWS\PyCharmMiscProject\.venv` | 10.5 MB | 同上 |
+| 工作区 `.tmp\MinGit.zip` + 运行时安装包 | 93.9 MB | 已用完的临时文件 |
+
+保留（有依据）：
+
+- `C:\Program Files\Razer\RzAppEngine` 379.7 MB —— `rzappengine.exe` 正在运行，属 Synapse 3 引擎
+- `C:\Program Files (x86)\ASUS\ArmouryDevice` 523.4 MB —— `asus_framework.exe` 正在运行
+- `C:\Program Files\Razer\RazerAppEngine` 462.3 MB —— Synapse 4 引擎，正在运行
+- `C:\Program Files (x86)\SogouInput` 982.4 MB —— `SogouImeBroker.exe` / `SogouCloud.exe` 在跑，是现役输入法
+- `C:\Users\WINDOWS\.trae-cn` 357.7 MB —— TRAE CN 已安装，属其数据目录
+- `C:\Program Files (x86)\InstallShield Installation Information` 196.5 MB —— 卸载/修复要用
+- `C:\Program Files\Windows Defender Advanced Threat Protection` 253.5 MB —— 系统组件
+
+### 10.3 未处理的大件（需要你决定）
+
+| 路径 | 体积 | 说明 |
+| --- | --- | --- |
+| `C:\Users\WINDOWS\xwechat_files` | 61,179.7 MB | 微信（Weixin，装在 `D:\Weixin`）的聊天文件。三个账号目录：`wxid_8c2ghxyvifod21_16ac` 58.5 GB / `wxid_a77ebpwhln7y22_3641` 2.6 GB / `wxid_g3cxrybujmt722_7520` 60.7 MB。**含聊天记录与接收的文件，不能盲删** |
+| `C:\Program Files (x86)\Interhaptics` | 338.5 MB | Razer 触觉反馈组件，有 `Uninstall.exe` 但无卸载记录（疑似残留） |
+| `C:\Program Files\Reference Assemblies` + `(x86)` | 76.7 MB | .NET Framework 参考程序集，随 SDK 装进来，现已无 SDK |
+| `C:\Users\WINDOWS\Documents` | 3,042.2 MB | 个人文档，不动 |
+| `C:\Users\WINDOWS\Desktop` | 660.2 MB | 含 4 个 80–90 MB 的 zip（学校资料），不动 |
+
+### 10.4 结果
+
+```
+C:  可用 180.3 GB / 399 GB   （清理前 178.75）
+D:  可用 229.5 GB / 531.2 GB
+```
+
+服务与进程复核：Razer Chroma/Stream/Elevation、ArmouryCrateService、AsusCertService、AsusFanControlService、OneDrive 全部仍在运行；RazerAppEngine.exe 与 rzappengine.exe 均存活。
