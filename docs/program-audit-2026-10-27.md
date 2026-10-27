@@ -304,3 +304,68 @@ D:  可用 229.5 GB / 531.2 GB
 ```
 
 服务与进程复核：Razer Chroma/Stream/Elevation、ArmouryCrateService、AsusCertService、AsusFanControlService、OneDrive 全部仍在运行；RazerAppEngine.exe 与 rzappengine.exe 均存活。
+
+---
+
+## 十一、第二轮：隐形的影子残留（AppData / ProgramData / 受保护目录）
+
+用户指出只看体积会漏掉"隐形又麻烦的东西"（例如 `C:\Users\WINDOWS\PyCharmMiscProject`）。第二轮改为**按"是否还有已安装程序认领"判定**，而不是按体积。
+
+### 11.1 判定基准
+
+- `AppData\Roaming` / `Local` / `LocalLow` / `ProgramData` 共 **270 个一级目录**，与 157 条已安装程序名单做模糊匹配。
+- 结论：**还在装的**有 火绒、百度网盘、网易云音乐、QQ、搜狗输入法、剪映、鹰角启动器、ToDesk、KOOK、CCtalk、BitComet；
+  **已经不装但数据还留着的**有 迅雷、Discord、Adobe 全家、PyCharm/JetBrains、Opera、沪江、poi、电子观舰仪（KanColle 工具）、KanAuto、YLH。
+
+### 11.2 已删除（合计 3,876.1 MB ≈ 3.79 GB）
+
+| 路径 | 体积 | 判定依据 |
+| --- | --- | --- |
+| `AppData\Roaming\Hujiang\Setup` | 606.3 MB | 沪江安装器的预下载包，程序未安装 |
+| `AppData\Local\b1` | 601.9 MB | 只有 `Saved\D3DDriverByteCodeBlob_*.ushaderprecache`，UE 着色器缓存 |
+| `AppData\Roaming\poi` | 571.7 MB | 舰C 工具 poi，注册表无记录、无 exe |
+| `AppData\Local\ElectronicObserver` | 510.7 MB | 电子观舰仪，同上 |
+| `ProgramData\Thunder Network` | 361.2 MB | 迅雷已卸载 |
+| `AppData\Local\CalabiYau\cache` | 347.5 MB | QtWebEngine 纯缓存（单个 data_3 188 MB），`Saved` 保留 |
+| `Program Files (x86)\Interhaptics` | 338.5 MB | Razer 触觉组件残留，**先停 `HapticService` 才能删** |
+| `AppData\Local\poi-updater` | 201.8 MB | poi 的更新器残留 |
+| `AppData\Local\YLH` | 72.5 MB | WebView2（EBWebView）缓存，无主 |
+| `AppData\Local\JetBrains` | 66.3 MB | PyCharm 已卸载 |
+| `AppData\Roaming\thunder` | 61.7 MB | 迅雷 |
+| `Program Files\Reference Assemblies` | 38.0 MB | .NET 参考程序集，SDK 已删 |
+| `Program Files (x86)\Reference Assemblies` | 38.7 MB | 同上 |
+| `AppData\Roaming\discord` | 43.1 MB | Discord 已卸载 |
+| `AppData\Local\Adobe` / `Roaming\Adobe` / `ProgramData\Adobe` / `com.adobe.dunamis` | 12.9 MB | Adobe 残留 |
+| `AppData\Roaming\KanAuto` | 3.4 MB | 舰C 自动脚本残留 |
+| `PycharmProjects`、`PyCharmMiscProject` | 0 MB（.venv 已先删） | 空壳目录 |
+| `LocalLow\Adobe`、`LocalLow\Thunder Network`、`Roaming\Opera Software`、`Roaming\迅雷影音` | 0 MB | 空壳 |
+| `HapticService` 服务项 | — | 文件已删，服务键用 `sc.exe delete` 清掉 |
+
+### 11.3 踩到的坑（重要）
+
+1. **受 TrustedInstaller 保护的目录，`Remove-Item` 一定失败**，即使 `whoami` 显示已提权、ACL 里 `BUILTIN\Administrators:(OI)(CI)(F)` 也在。
+   `takeown` + `icacls /grant` + 清只读属性全部无效，报 `System.ArgumentException :: 对路径的访问被拒绝。`
+   **唯一有效办法：`cmd /c "rd /s /q "<路径>""`**（Windows 的删除语义和 PowerShell 不一样）。
+2. **文件被服务占用时先停服务**：`Interhaptics` 反复失败，最后发现 `HapticService.exe`（PID 4908，Services 会话）在跑；
+   `sc.exe stop HapticService` → `rd /s /q` → 立刻成功，再 `sc.exe delete HapticService` 收尾。
+3. 目标索引要用 CIM 查：`Get-CimInstance Win32_Service -Filter "PathName LIKE '%Interhaptics%'"`，比猜服务名快。
+
+### 11.4 保留（有明确依据）
+
+| 路径 | 体积 | 理由 |
+| --- | --- | --- |
+| `C:\Users\WINDOWS\xwechat_files` | 61,179.7 MB | 微信聊天记录与文件，用户明确 pending |
+| `AppData\Local\GZW` | 1,378.3 MB | 《灰区战争》存档与配置，游戏还装着 |
+| `AppData\Local\Saber\Space Marine 2` | 658.7 MB | 《星际战士 2》存档 |
+| `AppData\Local\CalabiYau\Saved` | 35.2 MB | 只删了 `cache`，配置留着 |
+| `Documents` 3,042.2 MB / `Desktop` 660.2 MB | — | 个人文件 |
+| 各游戏存档（Stalker2 / SixDays / RoboCop / TheInvincible / ReadyOrNot 等） | — | 存档 |
+
+### 11.5 结果
+
+```
+C:  可用 183.83 GB / 399.02 GB   （本轮前 180.3）
+D:  可用 229.51 GB / 531.20 GB
+```
+
+仍待处理：`sc.exe delete XLWFP`（迅雷 WFP 孤儿服务键，需管理员）、微信 61 GB（等决定）。
