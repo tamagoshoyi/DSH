@@ -199,3 +199,43 @@
 - `%LOCALAPPDATA%\Discord` 464 MB
 - `%LOCALAPPDATA%\Thunder Network` 260 MB
 - `%APPDATA%\Thunder Network` 361 MB
+
+### 9.1 执行结果（2026-10-27 20:05 复核）
+
+15 项全部确认从注册表移除。卸载后**多出 17 项连带移除**，全部来自 .NET SDK bundle（它把运行时和打包组件装成了同一个包）：
+
+```
+Microsoft ASP.NET Core 8.0.32 Shared Framework (x64)     <- ASP.NET Core 运行时
+Microsoft ASP.NET Core 8.0.32 Targeting Pack (x64)
+Microsoft Windows Desktop Runtime - 8.0.32 (x64)         <- WPF/WinForms 运行时
+Microsoft Windows Desktop Targeting Pack - 8.0.32 (x64)
+Microsoft.NET.Sdk.{Android,iOS,macOS,MacCatalyst,Maui,tvOS,Aspire}.Manifest-8.0.100
+Microsoft.NET.Workload.{Emscripten,Mono.Toolchain}.*.Manifest
+```
+
+**现状（`dotnet --list-runtimes`）**
+
+```
+Microsoft.NETCore.App        6.0.36
+Microsoft.NETCore.App        8.0.32
+Microsoft.WindowsDesktop.App 6.0.36     <- 8.0.x 桌面运行时已随之移除
+```
+
+影响面：.NET 8 的**控制台/服务程序**照常运行；.NET 8 的 **WPF/WinForms 桌面程序**会报“需要 .NET Desktop Runtime 8”。修复办法是装回 Windows Desktop Runtime 8.0.x（约 55 MB）。
+
+Python 本体完好（`python --version` → 3.14.5），只少了文档和测试套件。
+
+### 9.2 残留清理
+
+| 路径 | 处理 |
+| --- | --- |
+| `D:\Thunder` | 卸载器已移除 |
+| `%APPDATA%\Thunder Network`（361 MB） | 卸载器已移除 |
+| `%LOCALAPPDATA%\Thunder Network`（260 MB） | 已手动删除 |
+| `%LOCALAPPDATA%\Discord`（1.5 MB） | 已手动删除 |
+| 开始菜单 `Discord Inc` 快捷方式（死链） | 已删除 |
+| `%USERPROFILE%\.dotnet`（空目录） | 已删除 |
+
+遗留待处理（需管理员）：孤儿服务键 `XLWFP`（Start=4 已禁用、驱动文件不存在），命令 `sc.exe delete XLWFP`。
+
+磁盘：C: 可用 178.75 GB / 399 GB，D: 可用 229.51 GB / 531.2 GB。
