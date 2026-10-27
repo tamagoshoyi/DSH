@@ -1,4 +1,4 @@
-﻿# C:/D: 全盘审计报告（2026-10-27）
+# C:/D: 全盘审计报告（2026-10-27）
 
 > 目标：找出垃圾文件、无头注册表项、僵尸软件残留，并给出可逐项决策的已安装程序全量清单。
 > 交互式表格：`docs/program-audit-2026-10-27.xlsx`（6 个工作表，「你的决定」列带下拉：保留 / 删除 / 待定）。
@@ -369,3 +369,32 @@ D:  可用 229.51 GB / 531.20 GB
 ```
 
 仍待处理：`sc.exe delete XLWFP`（迅雷 WFP 孤儿服务键，需管理员）、微信 61 GB（等决定）。
+
+## 十二、迅雷卸载后的二次残留清理（2026-10-27 23:2x）
+
+用户自行执行 `sc.exe delete XLWFP` 后，复查发现迅雷（已卸载）还留下五处残渣，全部指向已删除的 `D:\Thunder`：
+
+| 类型 | 位置 | 体积 | 判定 |
+| --- | --- | --- | --- |
+| 幽灵驱动服务 | `XLGuard`，`ImagePath=system32\drivers\XLGuard.sys`（文件不存在），`Start=1` SYSTEM_START | 每次开机尝试加载并失败 | 可删 |
+| 目录 | `C:\Program Files (x86)\Common Files\Thunder Network`（ServicePlatform / BHO / UserAgent / xlguard） | 14.9 MB / 56 个文件 | 可删 |
+| 目录 | `C:\Program Files\Common Files\Thunder Network\addins\shl_ext_1.0.0.3.dll` | 0.6 MB / 1 个文件 | 可删（无 CLSID 引用） |
+| 注册表 | `HKLM\SOFTWARE\WOW6432Node\Thunder Network`（`Thunder BHO Platform` 的 InstallPath/UninstallPath、`Xmp` 的播放器路径与 ~100 个媒体扩展名） | — | 可删 |
+| 浏览器宿主 | `com.xunlei.thunder` 原生消息宿主（指向上面 BHO 目录的 manifest） | — | 可删 |
+
+排除项（确认删了没有副作用）：`HKCR\*\shellex` 等右键菜单处理器里没有迅雷项；`.mp4/.mkv/.avi/.mp3` 的 `UserChoice` 指向 `AppXqj98qxeaynz6dv4459ayz6bnqxbyaqcs`（系统应用），迅雷播放器关联未生效；`HKLM\SOFTWARE\Classes\CLSID` 及 WOW6432Node 分支中没有任何条目引用 `shl_ext_1.0.0.3.dll`。
+
+清理脚本：[`scripts/cleanup-thunder-remnants.ps1`](../scripts/cleanup-thunder-remnants.ps1) + `cleanup-thunder-remnants.cmd`（`.cmd` 自检管理员权限并自动弹 UAC）；默认 dry-run，`-Execute` 才删。
+
+执行结果（已跑 `-Execute`）：
+
+```
+[1] XLGuard 服务      → 已删除（sc.exe delete）
+[2] Common Files 两处 → 已删除，释放 15.5 MB
+[3] 注册表 2 个键     → 已删除（含 Chrome 原生宿主）
+[4] 复核              → 0 条残留引用（reg /f "Thunder" 全库 0 命中）
+```
+
+复验：`sc.exe query XLGuard` 返回 1060（服务不存在）；`HKLM\SYSTEM\CurrentControlSet\Services` 下再无 XL/Thunder 相关项；磁盘 `C: 183.21 GB / 399.02`、`D: 229.42 GB / 531.20`。
+
+至此迅雷卸载后的残留在服务、目录、注册表、浏览器宿主四个层面均已清空。仍待处理：微信 `xwechat_files`（61.18 GB，pending）。
