@@ -288,7 +288,7 @@ if ($Json) {
 }
 
 Write-Host ''
-Write-Host ("检测到 {0} 台活动显示器" -f $report.Count) -ForegroundColor Cyan
+Write-Host ("检测到 {0} 台活动显示器" -f @($report).Count) -ForegroundColor Cyan
 Write-Host ''
 
 $i = 1
